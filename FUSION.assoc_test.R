@@ -1,4 +1,5 @@
 suppressMessages(library('plink2R'))
+suppressMessages(library('parallel'))
 suppressMessages(library("optparse"))
 
 option_list = list(
@@ -150,7 +151,9 @@ if ( sum(!qc$keep) > 0 ) {
 FAIL.ctr = 0
 
 ## For each wgt file:
-for ( w in 1:nrow(wgtlist) ) {
+runOneGene = function(w) {
+out.tbl = data.frame( "PANEL" = rep(NA,N) , "FILE" = character(N) , "ID" = character(N) , "CHR" = numeric(N) , "P0" = numeric(N) , "P1" = numeric(N) ,"HSQ" = numeric(N) , "BEST.GWAS.ID" = character(N) , "BEST.GWAS.Z" = numeric(N) , "EQTL.ID" = character(N) , "EQTL.R2" = numeric(N) , "EQTL.Z" = numeric(N) , "EQTL.GWAS.Z" = numeric(N) , "NSNP" = numeric(N) , "NWGT" = numeric(N) , "MODEL" = character(N) , "MODELCV.R2" = numeric(N) , "MODELCV.PV" = numeric(N) , "TWAS.Z" = numeric(N) , "TWAS.P" = numeric(N) , stringsAsFactors=FALSE )
+
 	#cat( unlist(wgtlist[w,]) , '\n' )
 	# Load weights
 	wgt.file = paste(opt$weights_dir,"/",wgtlist$WGT[w],sep='')
@@ -358,8 +361,14 @@ for ( w in 1:nrow(wgtlist) ) {
 		out.tbl$COLOC.PP4[w] = round(clc$summary[6],3)
 	}
 	if ( cur.FAIL ) FAIL.ctr = FAIL.ctr + 1
+
+  return(out.table[w,])
 }
 
+out.table = do.call("rbind", mclapply(1:nrow(wgtlist), runOneGene,mc.cores = 8))
+
+  
+	
 cat("Analysis completed.\n")
 cat("NOTE:",FAIL.ctr,"/",nrow(wgtlist),"genes were skipped\n")
 if ( FAIL.ctr / nrow(wgtlist) > 0.1 ) {
